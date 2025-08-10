@@ -20,7 +20,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  IMAGE_NAME: docker-atrust-autologin
+  IMAGE_NAME: docker-atrust-autologin-arp
 
 jobs:
   build-docker-multiarch:
@@ -69,53 +69,3 @@ jobs:
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
-
-      - name: Upload ModelScope
-        run: |
-          echo "Upload ModelScope 1: Save docker image"
-          cd ./build/output
-          
-          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest --platform=linux/amd64
-          docker tag ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:amd64
-          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest --platform=linux/arm64
-          docker tag ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:arm64
-            
-          # 第一组并行：保存 Docker 镜像为 amd64
-          (
-            echo "Save docker image to ./${{ env.IMAGE_NAME }}-amd64.tar.xz"
-            docker save ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:amd64 | xz -T0 -c -9 -v > ./${{ env.IMAGE_NAME }}-amd64.tar.xz
-          ) &
-
-          # 第二组并行：拉取 Docker 镜像，标记为 arm64，保存为 .tar.xz 文件
-          (
-            echo "Save docker image to ./${{ env.IMAGE_NAME }}-arm64.tar.xz"
-            docker save ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:arm64 | xz -T0 -c -9 -v > ./${{ env.IMAGE_NAME }}-arm64.tar.xz
-          ) &
-          
-          # 等待所有后台任务完成
-          wait
-
-          ls -al .
-          
-          echo "Upload ModelScope 2: Upload to ModelScope"
-          git lfs install
-          export GIT_LFS_SKIP_SMUDGE=1
-          git clone https://oauth2:${{ secrets.MODELSCOPE_TOKEN }}@www.modelscope.cn/kenvix/aTrustLoginRepo.git aTrustLoginRepo
-          rm -f aTrustLoginRepo/${{ env.IMAGE_NAME }}-amd64.tar.xz
-          rm -f aTrustLoginRepo/${{ env.IMAGE_NAME }}-arm64.tar.xz
-          mv ./${{ env.IMAGE_NAME }}-amd64.tar.xz aTrustLoginRepo/
-          mv ./${{ env.IMAGE_NAME }}-arm64.tar.xz aTrustLoginRepo/
-          
-          cd aTrustLoginRepo
-          ls -al .
-          
-          git lfs track "*.tar.xz"
-          git add .gitattributes
-          git add ${{ env.IMAGE_NAME }}-amd64.tar.xz
-          git add ${{ env.IMAGE_NAME }}-arm64.tar.xz
-      
-          git config --global user.name "Kenvix CI Auto Commit"
-          git config --global user.email "ci@kenvix.com"
-      
-          git commit -m "Upload docker image"
-          git push
