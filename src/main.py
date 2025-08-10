@@ -21,7 +21,7 @@ class ATrustLoginStorage(BaseModel):
     local_storage: Dict[str, Any]
 
 class ATrustLogin:
-    def __init__(self, portal_address, driver_path=None, browser_path=None, driver_type=None, data_dir="data", cookie_tid=None, cookie_sig=None, interactive=False):
+    def __init__(self, portal_address, driver_path=None, browser_path=None, driver_type=None, data_dir="data", cookie_tid=None, cookie_sig=None, interactive=False, input_delay=0.5, loading_delay=5):
         self.initialized = False
         if not os.path.exists(data_dir):
             os.makedirs(data_dir, exist_ok=True)
@@ -31,6 +31,8 @@ class ATrustLogin:
         self.portal_host = urlparse(portal_address).hostname
         self.cookie_tid = cookie_tid
         self.cookie_sig = cookie_sig
+        self.input_delay = input_delay
+        self.loading_delay = loading_delay
 
         self.must_be_logged_keywords = ['app_center', 'user_info', 'app_apply', 'device_manage']
         self.must_not_logged_keywords = ['login', 'totpAuth', 'captcha']
@@ -110,13 +112,11 @@ class ATrustLogin:
     def wait_login_page(self):
         self.wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
 
-    @staticmethod
-    def delay_input():
-        time.sleep(0.5)
+    def delay_input(self):
+        time.sleep(self.input_delay)
 
-    @staticmethod
-    def delay_loading():
-        time.sleep(5)
+    def delay_loading(self):
+        time.sleep(self.loading_delay)
 
     # 输入用户名和密码
     def enter_credentials(self, username, password):
@@ -250,7 +250,7 @@ class ATrustLogin:
         self.close()
 
     @staticmethod
-    def wait_for_port(port, host='localhost'):
+    def wait_for_port(port, host='localhost', loading_delay=5):
         while True:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.settimeout(1)
@@ -261,16 +261,16 @@ class ATrustLogin:
                     break
                 except (socket.timeout, ConnectionRefusedError):
                     logger.info(f"aTrust Port {port} is not yet being listened on. Waiting for aTrust start ...")
-                    ATrustLogin.delay_loading()
+                    time.sleep(loading_delay)
 
-def main(username, password, portal_address="https://passport.escience.cn/oauth2/authorize?theme=arp_2018&client_id=59145&redirect_uri=https%3A%2F%2F159.226.243.221%3A443%2Fpassport%2Fv1%2Fauth%2FhttpsOauth2%3FsfDomain%3DOAuth&response_type=code", totp_key=None, cookie_tid=None, cookie_sig=None, keepalive=200, data_dir="./data", driver_type=None, driver_path=None, browser_path=None, interactive=False, wait_atrust=True):
+def main(username, password, portal_address="https://passport.escience.cn/oauth2/authorize?theme=arp_2018&client_id=59145&redirect_uri=https%3A%2F%2F159.226.243.221%3A443%2Fpassport%2Fv1%2Fauth%2FhttpsOauth2%3FsfDomain%3DOAuth&response_type=code", totp_key=None, cookie_tid=None, cookie_sig=None, keepalive=200, data_dir="./data", driver_type=None, driver_path=None, browser_path=None, interactive=False, wait_atrust=True, input_delay=0.5, loading_delay=5):
     logger.info("Opening Web Browser")
 
     if wait_atrust:
-        ATrustLogin.wait_for_port(54631)
+        ATrustLogin.wait_for_port(54631, loading_delay=loading_delay)
 
     # 创建ATrustLogin对象
-    at = ATrustLogin(data_dir=data_dir, portal_address=portal_address, cookie_tid=cookie_tid, cookie_sig=cookie_sig, driver_type=driver_type, driver_path=driver_path, browser_path=browser_path, interactive=interactive)
+    at = ATrustLogin(data_dir=data_dir, portal_address=portal_address, cookie_tid=cookie_tid, cookie_sig=cookie_sig, driver_type=driver_type, driver_path=driver_path, browser_path=browser_path, interactive=interactive, input_delay=input_delay, loading_delay=loading_delay)
 
     at.init()
 
