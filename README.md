@@ -2,6 +2,11 @@
 
 修改以适配 ARP 前端，并默认填写地址，只需要填写账号和密码即可。
 
+## 使用方法
+```sh
+docker run -it --rm -e ATRUST_OPTS='--username="用户名" --password="密码"' --device /dev/net/tun --cap-add NET_ADMIN -ti -p 1080:1080 --sysctl net.ipv4.conf.default.route_localnet=1 --shm-size 256m wingszeng/docker-atrust-autologin-arp
+```
+
 下面是原 Readme
 
 # aTrustLogin

@@ -2,6 +2,11 @@
 
 Modified to adapt to the ARP frontend, with the address filled in by default. Only the account and password need to be entered.
 
+## Usage
+```sh
+docker run -it --rm -e ATRUST_OPTS='--username="username" --password="password"' --device /dev/net/tun --cap-add NET_ADMIN -ti -p 1080:1080 --sysctl net.ipv4.conf.default.route_localnet=1 --shm-size 256m wingszeng/docker-atrust-autologin-arp
+```
+
 Below is the original Readme
 
 # aTrustLogin
