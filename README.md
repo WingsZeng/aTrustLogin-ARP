@@ -1,3 +1,9 @@
+# aTrustLogin-ARP
+
+修改以适配 ARP 前端，并默认填写地址，只需要填写账号和密码即可。
+
+下面是原 Readme
+
 # aTrustLogin
 
 [English Version](/README.en.md)

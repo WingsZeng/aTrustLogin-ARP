@@ -1,3 +1,9 @@
+# aTrustLogin-ARP
+
+Modified to adapt to the ARP frontend, with the address filled in by default. Only the account and password need to be entered.
+
+Below is the original Readme
+
 # aTrustLogin
 
 [中文版本](/README.md)
