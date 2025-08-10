@@ -1,5 +1,5 @@
-FROM hagb/docker-atrust:latest
-LABEL authors="Kenvix"
+FROM kenvix/docker-atrust-autologin:latest
+LABEL authors="Wings"
 
 ENV TZ="Asia/Shanghai"
 COPY ./docker/bin /bin
@@ -20,22 +20,8 @@ ENV PING_INTERVAL=1800
 # 保留基础镜像的卷（这会继承 `/root` 和 `/usr/share/sangfor/EasyConnect/resources/logs/` 的设置）
 VOLUME ["/root", "/usr/share/sangfor/EasyConnect/resources/logs/"]
 
-RUN echo "Begin build" && \
-    sed -i 's|http://.*archive.ubuntu.com|https://mirrors.ustc.edu.cn|g; s|http://.*security.ubuntu.com|https://mirrors.ustc.edu.cn|g' /etc/apt/sources.list && \
-    mkdir -p ~/.pip && \
-    date > /etc/build-date.txt && \
-    sed -i 's|http://deb.debian.org|https://mirrors.ustc.edu.cn|g; s|http://security.debian.org|https://mirrors.ustc.edu.cn/debian-security|g' /etc/apt/sources.list && \
-    echo "[global]" > ~/.pip/pip.conf && \
-    echo "index-url = https://mirrors.ustc.edu.cn/pypi/web/simple" >> ~/.pip/pip.conf && \
-    chmod +x /bin/start-with-autologin.sh && \
-    chmod +x /bin/start-with-autologin-actual.sh && \
-    chmod +x /bin/start-port-forwarding.sh && \
-    apt-get update && \
-    apt-get install -y apt-utils curl && \
-    apt-get install -y chromium chromium-driver chromium-l10n python3 python3-pip && \
-    cd /opt/atrust-autologin && \
-    pip3 install --break-system-packages -r requirements.txt && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+RUN chmod +x /bin/start-with-autologin.sh && \
+  chmod +x /bin/start-with-autologin-actual.sh && \
+  chmod +x /bin/start-port-forwarding.sh
 
 CMD ["/bin/start-with-autologin.sh"]

@@ -1,3 +1,4 @@
+import json
 import os.path
 import pickle
 import platform
@@ -79,7 +80,7 @@ class ATrustLogin:
 
         self.wait = WebDriverWait(self.driver, 10)
 
-    # 打开默认的portal地址并等待sangfor_main_auth_container出现
+    # 打开默认的portal地址
     def open_portal(self):
         self.driver.get(self.portal_address)
 
@@ -107,9 +108,6 @@ class ATrustLogin:
         )
 
     def wait_login_page(self):
-        # 使用显式等待sangfor_main_auth_container元素出现
-        self.wait.until(EC.presence_of_element_located((By.ID, "sangfor_main_auth_container")))
-        self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, "login-panel")))
         self.wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
 
     @staticmethod
@@ -119,30 +117,6 @@ class ATrustLogin:
     @staticmethod
     def delay_loading():
         time.sleep(5)
-
-    # 递归查找具有指定placeholder的前两个非hidden类型的input框
-    def find_input_fields(self, element, inputs_found=None):
-        if inputs_found is None:
-            inputs_found = []
-
-        # 检查当前节点是否是符合条件的input框
-        if element.tag_name == "input":
-            placeholder = element.get_attribute("placeholder")
-            input_type = element.get_attribute("type")
-            # 确保input具有指定的placeholder，并且不是hidden类型
-            if placeholder and ("账号" in placeholder or "account" in placeholder.lower() or "密码" in placeholder or "password" in placeholder.lower()) and input_type != "hidden":
-                inputs_found.append(element)
-                # 如果找到两个符合条件的input框就返回
-                if len(inputs_found) == 2:
-                    return inputs_found
-
-        # 递归遍历所有子节点
-        child_elements = element.find_elements(By.XPATH, "./*")
-        for child in child_elements:
-            result = self.find_input_fields(child, inputs_found)
-            if result and len(result) == 2:
-                return result
-        return inputs_found
 
     # 输入用户名和密码
     def enter_credentials(self, username, password):
@@ -154,49 +128,28 @@ class ATrustLogin:
         except:
             pass
 
-        # 找到包含ID=sangfor_main_auth_container的div
-        main_auth_div = self.driver.find_element(By.ID, "sangfor_main_auth_container")
+        self.wait.until(EC.element_to_be_clickable((By.ID, "userName")))
+        username_input = self.driver.find_element(By.ID, "userName")
 
-        # 递归查找前两个input框
-        input_fields = self.find_input_fields(main_auth_div)
+        self.wait.until(EC.element_to_be_clickable((By.ID, "password")))
+        password_input = self.driver.find_element(By.ID, "password")
 
-        if len(input_fields) >= 2:
-            username_input = input_fields[0]
-            password_input = input_fields[1]
+        # 输入用户名和密码
+        self.scroll_and_click(username_input)
+        self.delay_input()
+        username_input.clear()
+        username_input.send_keys(username)
 
-            # 输入用户名和密码
-            self.scroll_and_click(self.wait.until(EC.element_to_be_clickable(username_input)))
-            self.delay_input()
-            username_input.clear()
-            username_input.send_keys(username)
+        self.scroll_and_click(password_input)
+        self.delay_input()
+        password_input.clear()
+        password_input.send_keys(password)
 
-            self.scroll_and_click(self.wait.until(EC.element_to_be_clickable(password_input)))
-            self.delay_input()
-            password_input.clear()
-            password_input.send_keys(password)
-
-            checkbox = main_auth_div.find_element(By.XPATH, "//input[@type='checkbox']")
-            # 检查checkbox是否已经被选中
-            if not checkbox.is_selected():
-                self.delay_input()
-                self.scroll_and_click(checkbox)  # 如果没有选中，就点击选中
-
-            logger.debug("Filled username and password")
-        else:
-            logger.info("未找到用户名或密码输入框")
+        logger.debug("Filled username and password")
 
     # 查找并点击登录按钮
     def click_login_button(self):
-        # 在div class=login-panel中寻找包含“登录”或“login”或“log in”的按钮
-        login_panel = self.driver.find_element(By.CLASS_NAME, "login-panel")
-        buttons = login_panel.find_elements(By.TAG_NAME, "button")
-
-        for button in buttons:
-            button_text = button.text.lower()
-            if "登录" in button_text or "login" in button_text or "log in" in button_text:
-                self.scroll_and_click(button)
-                return
-        logger.info("未找到符合条件的登录按钮")
+        self.scroll_and_click(self.driver.find_element(By.ID, "loginBtn"))
 
     def load_storage(self):
         # 从pickle文件中加载存储的数据
@@ -210,12 +163,12 @@ class ATrustLogin:
                         self.driver.add_cookie(cookie)
                     # 从local_storage中加载local storage
                     for key, value in data.local_storage.items():
-                        self.driver.execute_script(f"window.localStorage.setItem('{key}', '{value}')")
+                        key_js = json.dumps(key)
+                        value_js = json.dumps(value)
+                        self.driver.execute_script(f"window.localStorage.setItem({key_js}, {value_js});")
                     logger.info("Loaded storage data")
         except FileNotFoundError:
             logger.info("未找到存储的数据")
-
-        self.set_cli_cookie(force=False)
 
     def scroll_to(self, element):
         self.driver.execute_script("arguments[0].scrollIntoView();", element)
@@ -224,25 +177,6 @@ class ATrustLogin:
         self.driver.execute_script("arguments[0].scrollIntoView();", element)
         element.click()
         return element
-
-    def set_cli_cookie(self, force=False):
-        if force or not self.driver.get_cookie("tid"):
-            self.driver.delete_cookie("tid")
-            self.driver.add_cookie({
-                "name": "tid",
-                "value": self.cookie_tid,
-                "domain": self.portal_host,
-                "path": "/"
-            })
-
-        if force or not self.driver.get_cookie("tid.sig"):
-            self.driver.delete_cookie("tid.sig")
-            self.driver.add_cookie({
-                "name": "tid.sig",
-                "value": self.cookie_sig,
-                "domain": self.portal_host,
-                "path": "/"
-            })
 
     def require_interact(self):
         if self.interactive:
@@ -272,41 +206,6 @@ class ATrustLogin:
         logger.info("Performed basic login action")
 
         self.delay_loading()
-        logger.debug("Checking captcha ...")
-
-        if "图形校验码" in self.driver.page_source:
-            if 'is_retried' not in kwargs:
-                self.set_cli_cookie(force=True)
-                self.driver.refresh()
-                self.login( username, password, totp_key, is_retried=True)
-                return
-            else:
-                logger.warning("Need to handle captcha, press any key to continue")
-                self.require_interact()
-
-        if "TOTP" in self.driver.page_source and "二次认证" in self.driver.page_source:
-            if totp_key is not None:
-                totp = pyotp.TOTP(totp_key)
-                totp_code = totp.now()
-
-                logger.info(f"TOTP code: {totp_code}")
-                totp_input = self.driver.find_element(By.XPATH, "//input[contains(@class, 'totp')]")
-
-                self.scroll_and_click(self.wait.until(EC.element_to_be_clickable(totp_input)))
-                self.delay_input()
-                totp_input.send_keys(totp_code)
-
-                submit_button = self.driver.find_element(By.CSS_SELECTOR, "button[type='submit'], input[type='submit']")
-                self.wait.until(EC.element_to_be_clickable(submit_button))
-                self.delay_input()
-                self.scroll_and_click(submit_button)
-                logger.info(f"Performed TOTP login action with code: {totp_code}")
-                self.delay_loading()
-            else:
-                logger.info("Need to handle TOTP, press any key to continue")
-                self.require_interact()
-
-        logger.info("Performed verification code login action")
 
         if self.is_logged():
             logger.info("Login Success")
@@ -364,7 +263,7 @@ class ATrustLogin:
                     logger.info(f"aTrust Port {port} is not yet being listened on. Waiting for aTrust start ...")
                     ATrustLogin.delay_loading()
 
-def main(portal_address, username, password, totp_key=None, cookie_tid=None, cookie_sig=None, keepalive=200, data_dir="./data", driver_type=None, driver_path=None, browser_path=None, interactive=False, wait_atrust=True):
+def main(username, password, portal_address="https://passport.escience.cn/oauth2/authorize?theme=arp_2018&client_id=59145&redirect_uri=https%3A%2F%2F159.226.243.221%3A443%2Fpassport%2Fv1%2Fauth%2FhttpsOauth2%3FsfDomain%3DOAuth&response_type=code", totp_key=None, cookie_tid=None, cookie_sig=None, keepalive=200, data_dir="./data", driver_type=None, driver_path=None, browser_path=None, interactive=False, wait_atrust=True):
     logger.info("Opening Web Browser")
 
     if wait_atrust:
