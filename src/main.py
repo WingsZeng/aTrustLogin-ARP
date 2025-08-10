@@ -7,7 +7,6 @@ import time
 from typing import Dict, List, Any
 from urllib.parse import urlparse
 
-import pyotp
 from loguru import logger
 from pydantic import BaseModel
 from selenium import webdriver
@@ -21,21 +20,18 @@ class ATrustLoginStorage(BaseModel):
     local_storage: Dict[str, Any]
 
 class ATrustLogin:
-    def __init__(self, portal_address, driver_path=None, browser_path=None, driver_type=None, data_dir="data", cookie_tid=None, cookie_sig=None, interactive=False, input_delay=0.5, loading_delay=5):
+    def __init__(self, portal_address, driver_path=None, browser_path=None, driver_type=None, data_dir="data", interactive=False, input_delay=0.5, loading_delay=5):
         self.initialized = False
         if not os.path.exists(data_dir):
             os.makedirs(data_dir, exist_ok=True)
         self.data_dir = data_dir
         self.interactive = interactive
         self.portal_address = portal_address
-        self.portal_host = urlparse(portal_address).hostname
-        self.cookie_tid = cookie_tid
-        self.cookie_sig = cookie_sig
         self.input_delay = input_delay
         self.loading_delay = loading_delay
 
         self.must_be_logged_keywords = ['app_center', 'user_info', 'app_apply', 'device_manage']
-        self.must_not_logged_keywords = ['login', 'totpAuth', 'captcha']
+        self.must_not_logged_keywords = ['login', 'captcha']
 
         if driver_type is None:
             system = platform.system()
@@ -85,29 +81,6 @@ class ATrustLogin:
     # 打开默认的portal地址
     def open_portal(self):
         self.driver.get(self.portal_address)
-
-        if self.driver.get_cookie("language"):
-            self.driver.delete_cookie("language")
-        if self.driver.get_cookie("lang"):
-            self.driver.delete_cookie("lang")
-
-        self.driver.add_cookie(
-            {
-                "name": "language",
-                "value": "zh-CN",
-                "domain": self.portal_host,
-                "path": "/",
-            }
-        )
-
-        self.driver.add_cookie(
-            {
-                "name": "lang",
-                "value": "zh-cn",
-                "domain": self.portal_host,
-                "path": "/",
-            }
-        )
 
     def wait_login_page(self):
         self.wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
@@ -192,7 +165,7 @@ class ATrustLogin:
             self.load_storage()
             self.initialized = True
 
-    def login(self, username, password, totp_key, **kwargs):
+    def login(self, username, password):
         self.init()
 
         if self.is_logged():
@@ -263,14 +236,14 @@ class ATrustLogin:
                     logger.info(f"aTrust Port {port} is not yet being listened on. Waiting for aTrust start ...")
                     time.sleep(loading_delay)
 
-def main(username, password, portal_address="https://passport.escience.cn/oauth2/authorize?theme=arp_2018&client_id=59145&redirect_uri=https%3A%2F%2F159.226.243.221%3A443%2Fpassport%2Fv1%2Fauth%2FhttpsOauth2%3FsfDomain%3DOAuth&response_type=code", totp_key=None, cookie_tid=None, cookie_sig=None, keepalive=200, data_dir="./data", driver_type=None, driver_path=None, browser_path=None, interactive=False, wait_atrust=True, input_delay=0.5, loading_delay=5):
+def main(username, password, portal_address="https://passport.escience.cn/oauth2/authorize?theme=arp_2018&client_id=59145&redirect_uri=https%3A%2F%2F159.226.243.221%3A443%2Fpassport%2Fv1%2Fauth%2FhttpsOauth2%3FsfDomain%3DOAuth&response_type=code", keepalive=200, data_dir="./data", driver_type=None, driver_path=None, browser_path=None, interactive=False, wait_atrust=True, input_delay=0.5, loading_delay=5):
     logger.info("Opening Web Browser")
 
     if wait_atrust:
         ATrustLogin.wait_for_port(54631, loading_delay=loading_delay)
 
     # 创建ATrustLogin对象
-    at = ATrustLogin(data_dir=data_dir, portal_address=portal_address, cookie_tid=cookie_tid, cookie_sig=cookie_sig, driver_type=driver_type, driver_path=driver_path, browser_path=browser_path, interactive=interactive, input_delay=input_delay, loading_delay=loading_delay)
+    at = ATrustLogin(data_dir=data_dir, portal_address=portal_address, driver_type=driver_type, driver_path=driver_path, browser_path=browser_path, interactive=interactive, input_delay=input_delay, loading_delay=loading_delay)
 
     at.init()
 
@@ -280,7 +253,7 @@ def main(username, password, portal_address="https://passport.escience.cn/oauth2
                 logger.info("Session lost. Trying to login again ...")
                 at.open_portal()
                 at.delay_loading()
-                if at.login(username=username, password=password, totp_key=totp_key) is True:
+                if at.login(username=username, password=password) is True:
                     at.delay_loading()
                     at.delay_loading()
 
