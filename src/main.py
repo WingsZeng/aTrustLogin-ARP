@@ -272,7 +272,7 @@ class ATrustLogin:
 def main(
     username,
     password,
-    portal_address="https://passport.escience.cn/oauth2/authorize?theme=arp_2018&client_id=59145&redirect_uri=https%3A%2F%2F159.226.243.221%3A443%2Fpassport%2Fv1%2Fauth%2FhttpsOauth2%3FsfDomain%3DOAuth&response_type=code",
+    portal_address="https://passport.escience.cn/oauth2/authorize?theme=arp_2018&client_id=59145&redirect_uri=https%3A%2F%2Fatrust.arp.cn%2Fpassport%2Fv1%2Fauth%2FhttpsOauth2%3FsfDomain%3DOAuth&response_type=code",
     keepalive=200,
     data_dir="./data",
     driver_type=None,
